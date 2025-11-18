@@ -12,12 +12,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,6 +33,7 @@ import androidx.navigation.NavController
 import com.example.student.navigation.Screen
 import com.example.student.viewmodel.EstudiantesViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     navController: NavController,
@@ -35,40 +41,56 @@ fun DashboardScreen(
 ) {
     val estudiantes = viewModel.estudiantes.value
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Lista de Estudiantes",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (estudiantes.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Gestión de Estudiantes") }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navController.navigate(Screen.AgregarEstudiante.route) }
             ) {
-                Text("No hay estudiantes registrados")
+                Icon(Icons.Default.Add, contentDescription = "Agregar estudiante")
             }
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(estudiantes) { estudiante ->
-                    EstudianteCard(
-                        estudiante = estudiante,
-                        onEdit = {
-                            navController.navigate(Screen.EditarEstudiante.createRoute(estudiante.id.toString()))
-                        },
-                        onDelete = {
-                            viewModel.eliminarEstudiante(estudiante.id)
-                        }
-                    )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Lista de Estudiantes",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (estudiantes.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No hay estudiantes registrados")
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(estudiantes) { estudiante ->
+                        EstudianteCard(
+                            estudiante = estudiante,
+                            onEdit = {
+                                navController.navigate(Screen.EditarEstudiante.createRoute(estudiante.id.toString()))
+                            },
+                            onDelete = {
+                                viewModel.eliminarEstudiante(estudiante.id)
+                            }
+                        )
+                    }
                 }
             }
         }

@@ -1,143 +1,81 @@
-package com.example.student
+package com.example.student.viewmodel
 
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Assessment
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import com.example.student.navigation.Screen
-import com.example.student.ui.screens.AgregarEstudiantesScreen
-import com.example.student.ui.screens.CalculoPromedioScreen
-import com.example.student.ui.screens.DashboardScreen
-import com.example.student.ui.screens.EditarEstudianteScreen
-import com.example.student.ui.theme.StudentTheme
-import com.example.student.viewmodel.EstudiantesViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.student.data.Estudiante
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent {
-            StudentTheme {
-                MainApp()
+class EstudiantesViewModel : ViewModel() {
+
+    private val _estudiantes = MutableStateFlow<List<Estudiante>>(emptyList())
+    val estudiantes: StateFlow<List<Estudiante>> = _estudiantes.asStateFlow()
+
+    private var currentId = 1
+
+    fun agregarEstudiante(estudiante: Estudiante) {
+        viewModelScope.launch {
+            val nuevaLista = _estudiantes.value.toMutableList()
+            val estudianteConId = if (estudiante.id == 0) {
+                estudiante.copy(id = currentId++)
+            } else {
+                estudiante
+            }
+            nuevaLista.add(estudianteConId)
+            _estudiantes.value = nuevaLista
+        }
+    }
+
+    fun actualizarEstudiante(estudiante: Estudiante) {
+        viewModelScope.launch {
+            val nuevaLista = _estudiantes.value.toMutableList()
+            val index = nuevaLista.indexOfFirst { it.id == estudiante.id }
+            if (index != -1) {
+                nuevaLista[index] = estudiante
+                _estudiantes.value = nuevaLista
             }
         }
     }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun MainApp(viewModel: EstudiantesViewModel = viewModel()) {
-    val navController = rememberNavController()
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
-
-    Scaffold(
-        topBar = {
-            Column {
-                CenterAlignedTopAppBar(
-                    title = { Text("Gestión de Estudiantes") }
-                )
-                // TabRow debajo del TopAppBar
-                TabRow(
-                    selectedTabIndex = selectedTabIndex,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                ) {
-                    // Tab 1: Estudiantes
-                    Tab(
-                        selected = selectedTabIndex == 0,
-                        onClick = { selectedTabIndex = 0 },
-                        text = { Text("Estudiantes") },
-                        icon = {
-                            Icon(
-                                Icons.Filled.Person,
-                                contentDescription = "Estudiantes"
-                            )
-                        }
-                    )
-
-                    // Tab 2: Promedios
-                    Tab(
-                        selected = selectedTabIndex == 1,
-                        onClick = { selectedTabIndex = 1 },
-                        text = { Text("Promedios") },
-                        icon = {
-                            Icon(
-                                Icons.Filled.Assessment,
-                                contentDescription = "Promedios"
-                            )
-                        }
-                    )
-                }
-            }
-        },
-        floatingActionButton = {
-            // FAB solo visible en la tab de Estudiantes
-            if (selectedTabIndex == 0) {
-                FloatingActionButton(
-                    onClick = { navController.navigate(Screen.AgregarEstudiante.route) }
-                ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Agregar Estudiante")
-                }
-            }
+    fun eliminarEstudiante(id: Int) {
+        viewModelScope.launch {
+            val nuevaLista = _estudiantes.value.toMutableList()
+            nuevaLista.removeAll { it.id == id }
+            _estudiantes.value = nuevaLista
         }
-    ) { innerPadding ->
-        // Contenido según la tab seleccionada
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            when (selectedTabIndex) {
-                0 -> {
-                    // NavHost solo para la sección de Estudiantes
-                    NavHost(
-                        navController = navController,
-                        startDestination = Screen.Dashboard.route
-                    ) {
-                        composable(Screen.Dashboard.route) {
-                            DashboardScreen(navController, viewModel)
-                        }
-                        composable(Screen.AgregarEstudiante.route) {
-                            AgregarEstudiantesScreen(navController, viewModel)
-                        }
-                        composable(
-                            route = Screen.EditarEstudiante.route,
-                            arguments = listOf(navArgument("estudianteId") {
-                                type = NavType.StringType
-                            })
-                        ) { backStackEntry ->
-                            val estudianteId = backStackEntry.arguments?.getString("estudianteId")
-                            EditarEstudianteScreen(
-                                navController = navController,
-                                viewModel = viewModel,
-                                estudianteId = estudianteId
-                            )
-                        }
-                    }
-                }
-                1 -> {
-                    // Pantalla de Promedios
-                    CalculoPromedioScreen(viewModel)
-                }
-            }
-        }
+    }
+
+    fun obtenerEstudiantePorId(id: Int): Estudiante? {
+        return _estudiantes.value.find { it.id == id }
+    }
+
+    // Cálculos
+    fun calcularPromedioGeneral(): Double {
+        val estudiantes = _estudiantes.value
+        if (estudiantes.isEmpty()) return 0.0
+        return estudiantes.map { it.puntuaje }.average()
+    }
+
+    fun obtenerEstudianteConMayorPuntuaje(): Estudiante? {
+        return _estudiantes.value.maxByOrNull { it.puntuaje }
+    }
+
+    fun obtenerTop3PorGrupo(grupo: String): List<Estudiante> {
+        return _estudiantes.value
+            .filter { it.grupo == grupo }
+            .sortedByDescending { it.puntuaje }
+            .take(3)
+    }
+
+    fun obtenerGrupos(): List<String> {
+        return _estudiantes.value.map { it.grupo }.distinct()
+    }
+
+    fun calcularPromedioPorGrupo(grupo: String): Double {
+        val estudiantesGrupo = _estudiantes.value.filter { it.grupo == grupo }
+        if (estudiantesGrupo.isEmpty()) return 0.0
+        return estudiantesGrupo.map { it.puntuaje }.average()
     }
 }

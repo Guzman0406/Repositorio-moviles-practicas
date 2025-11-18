@@ -11,7 +11,11 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -40,6 +44,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+sealed class TabItem(
+    val title: String,
+    val icon: ImageVector,
+    val route: String
+) {
+    object Dashboard : TabItem("Estudiantes", Icons.Default.Person, Screen.Dashboard.route)
+    object Promedios : TabItem("Promedios", Icons.Default.Assessment, Screen.Promedios.route)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainApp(viewModel: EstudiantesViewModel = viewModel()) {
@@ -47,37 +60,31 @@ fun MainApp(viewModel: EstudiantesViewModel = viewModel()) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
+    // Estado para el tab seleccionado
+    var selectedTab by remember { mutableIntStateOf(0) }
+
+    val tabItems = listOf(TabItem.Dashboard, TabItem.Promedios)
+
     Scaffold(
         bottomBar = {
             NavigationBar {
-                NavigationBarItem(
-                    icon = { Icon(Icons.Filled.Person, contentDescription = "Estudiantes") },
-                    label = { Text("Estudiantes") },
-                    selected = currentDestination?.hierarchy?.any { it.route == Screen.Dashboard.route } == true,
-                    onClick = {
-                        navController.navigate(Screen.Dashboard.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
+                tabItems.forEachIndexed { index, item ->
+                    NavigationBarItem(
+                        icon = { Icon(item.icon, contentDescription = item.title) },
+                        label = { Text(item.title) },
+                        selected = selectedTab == index,
+                        onClick = {
+                            selectedTab = index
+                            navController.navigate(item.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
                             }
-                            launchSingleTop = true
-                            restoreState = true
                         }
-                    }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Filled.Assessment, contentDescription = "Promedios") },
-                    label = { Text("Promedios") },
-                    selected = currentDestination?.hierarchy?.any { it.route == Screen.Promedios.route } == true,
-                    onClick = {
-                        navController.navigate(Screen.Promedios.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                )
+                    )
+                }
             }
         },
         floatingActionButton = {
